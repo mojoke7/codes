@@ -7,6 +7,6 @@ for K in range(0,99):
     print(xor(bytes.fromhex(KEY1),K))
 #FLAG = xor((KEY1),KEY)
 #FLAG1 = xor
-
+# print (FLAG)
 
 
