@@ -98,7 +98,7 @@ state = [
 
 def sub_bytes(s, sbox=s_box):
     #return xor(s, sbox)
-    return bytes([ sbox[k] for k in sum(s,[])])
+    return bytes([ sbox[k] for k in sum(s, [])])
 
 
 
