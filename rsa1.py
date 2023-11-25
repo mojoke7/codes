@@ -10,3 +10,4 @@ n = q*p
 
 print(pow(12, e, n))
 
+k
