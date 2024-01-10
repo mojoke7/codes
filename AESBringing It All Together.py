@@ -1,4 +1,7 @@
 from pwn import xor
+from pwn import * 
+import base64
+
 N_ROUNDS = 10
 
 
@@ -44,19 +47,24 @@ inv_s_box = (
 )
 
 def add_round_key(s, k):
-    return xor(s, k)
+     for i in range(len(s)):
+        for j in range(len(s[i])):
+            s[i][j] = (s[i][j] ^ k[i][j])
+    #return xor(s, k)
 
-#def expand_key(master_key):
-    """
-    Expands and returns a list of key matrices for the given master_key.
-    """
+def sub_bytes(s, sbox=s_box):
+    return [[sbox[x] for x in l] for l in s]
+
+
 def bytes2matrix(text):
     """ Converts a 16-byte array into a 4x4 matrix.  """
     return [list(text[i:i+4]) for i in range(0, len(text), 4)]
 
 def matrix2bytes(matrix):
+  
     """ Converts a 4x4 matrix into a 16-byte array.  """
     return bytes(sum(matrix, []))
+
 
 def shift_rows(s):
     s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
@@ -69,12 +77,18 @@ def inv_shift_rows(s):
     s[2][2], s[3][2], s[0][2], s[1][2] = s[0][2], s[1][2], s[2][2], s[3][2]
     s[3][3], s[0][3], s[1][3], s[2][3] = s[0][3], s[1][3], s[2][3], s[3][3]
 
+
+def inv_sub_bytes(s, sbox=inv_s_box):
+    for i in range(len(s)):
+        for j in range(len(s[i])):
+            s[i][j] = (sbox[s[i][j]])
+
 # learned from http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
 xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
 
 
 def mix_single_column(a):
-    # see Sec 4.1.2 in The Design of Rijndael
+   
     t = a[0] ^ a[1] ^ a[2] ^ a[3]
     u = a[0]
     a[0] ^= t ^ xtime(a[0] ^ a[1])
@@ -88,7 +102,7 @@ def mix_columns(s):
 
 
 def inv_mix_columns(s):
-    # see Sec 4.1.3 in The Design of Rijndael
+  
     for i in range(4):
         u = xtime(xtime(s[i][0] ^ s[i][2]))
         v = xtime(xtime(s[i][1] ^ s[i][3]))
@@ -98,6 +112,12 @@ def inv_mix_columns(s):
         s[i][3] ^= v
 
     mix_columns(s)
+
+#def add_round_key(s, k):
+#   for i in range(len(s)):
+ #       for j in range(len(s[i])):
+  #          s[i][j] = (s[i][j] ^ k[i][j])
+    #return [[x^y for x, y in zip(l1, l2)] for l1, l2 in zip(s, k)]
 
 def expand_key(master_key):
     """
@@ -148,17 +168,44 @@ def decrypt(key, ciphertext):
     round_keys = expand_key(key) # Remember to start from the last round key and work backwards through them when decrypting
 
     # Convert ciphertext to state matrix
-    text = bytes2matrix(ciphertext)
+    state = bytes2matrix(ciphertext)
     # Initial add round key step
+    add_round_key(state, round_keys[-1])
 
     for i in range(N_ROUNDS - 1, 0, -1):
-        pass # Do round
+        inv_shift_rows(state)
+        inv_sub_bytes(state, inv_s_box)
+        add_round_key(state,round_keys[i])
+        inv_mix_columns(state)
+        #pass # Do round
 
     # Run final round (skips the InvMixColumns step)
+    inv_shift_rows(state)
+    inv_sub_bytes(state, inv_s_box)
+    add_round_key(state, round_keys[0])
 
     # Convert state matrix to plaintext
+    #plaintext = bytes(matrix2bytes(state))
+    plaintext = matrix2bytes(state)
 
     return plaintext
 
 
+#print(decodedflag)
+#bytes_string = decrypt(key, ciphertext)
 print(decrypt(key, ciphertext))
+
+#decoded_string = base64.b64encode(bytes_string).decode('utf-8')
+#print(decoded_string)
+#FLAG = b'\xee\xc9u\\\x1c\xc2\x03\x8f7Xn\xa3\x12)\x83\xf3'
+#ans = xor(FLAG) 
+#KEY1 = (bytes.fromhex(key))
+#KEY2 = xor(bytes.fromhex(ciphertext), key)
+#KEY1 = key  # if key is already a bytes object
+#KEY2 = xor(ciphertext, key)
+#decoded_string1 = (KEY2).decode('utf-8')
+#decoded_data2 = base64.b64decode(b'\xee\xc9u\\\x1c\xc2\x03\x8f7Xn\xa3\x12)\x83\xf3')
+#flag = xor(key ,ciphertext)
+#print(ans) 
+#print(KEY2)
+#print(decoded_data2)
